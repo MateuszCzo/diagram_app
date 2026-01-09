@@ -3,12 +3,8 @@ import { DataSource } from 'typeorm';
 import { Project } from './models/Project';
 import { IncomingMessage } from 'http';
 
-interface ProjectData {
-  elements: any[];
-}
-
 const rooms = new Map<string, Set<WebSocket>>();
-const projectCache = new Map<string, ProjectData>();
+const projectCache = new Map<string, string>();
 
 export function setupWebSocket(server: any, dataSource: DataSource) {
   const wss = new WebSocketServer({ server });
@@ -18,8 +14,11 @@ export function setupWebSocket(server: any, dataSource: DataSource) {
     console.log('✅ WebSocket client connected');
 
     const url = req.url || '';
+    console.log(`Url ${url}`);
+
     const match = url.match(/\/ws\/(.+)/);
     if (!match) {
+      console.log(`No match ws close`);
       ws.close();
       return;
     }
@@ -34,32 +33,37 @@ export function setupWebSocket(server: any, dataSource: DataSource) {
     console.log(`Client joined project ${projectId}`);
 
     if (!projectCache.has(projectId)) {
+      console.log(`Pobieranie projektu z db`);
       const project = await projectRepo.findOne({ where: { id: projectId } });
       projectCache.set(
         projectId,
-        project?.snapshot
-          ? JSON.parse(project.snapshot)
-          : { elements: [] }
+        project?.snapshot || ''
       );
     }
 
-    ws.send(JSON.stringify(projectCache.get(projectId)));
+    const response = projectCache.get(projectId) || '';
+
+    console.log(`Send project to client ${response}`);
+
+    ws.send(response);
 
     ws.on('message', async (raw) => {
-      const payload = JSON.parse(raw.toString());
+      console.log('Message recived');
 
-      if (!Array.isArray(payload.elements)) return;
+      const payload = raw.toString();
 
       projectCache.set(projectId, payload);
 
       for (const client of rooms.get(projectId)!) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(payload));
+        if (client !== ws 
+          && client.readyState === WebSocket.OPEN
+        ) {
+          client.send(payload);
         }
       }
 
       await projectRepo.upsert(
-        { id: projectId, name: projectId, snapshot: JSON.stringify(payload) },
+        { id: projectId, name: projectId, snapshot: payload },
         ['id']
       );
     });
