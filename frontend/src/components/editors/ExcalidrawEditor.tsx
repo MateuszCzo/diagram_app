@@ -6,6 +6,8 @@ import { compare, applyPatch, type Operation } from 'fast-json-patch';
 import { useDiagramWs, type WsStatus } from '../../hooks/useDiagramWs';
 import type { PatchOp } from '../../types/Diagram';
 
+import '@excalidraw/excalidraw/index.css';
+
 interface ExcalidrawEditorProps {
   diagramId:        string;
   initialSnapshot:  string;

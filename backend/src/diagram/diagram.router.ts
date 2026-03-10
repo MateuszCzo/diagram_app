@@ -1,11 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { DiagramService } from './diagram.service';
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isValidUuid(value: string): boolean {
-  return UUID_REGEX.test(value);
-}
+import { DiagramService, isValidUuid } from './diagram.service';
 
 export function diagramRouter(diagramService: DiagramService): Router {
   const router = Router();

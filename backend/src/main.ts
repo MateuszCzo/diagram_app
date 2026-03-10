@@ -11,8 +11,22 @@ import { DiagramRepository } from './diagram/diagram.repository';
 import { DiagramService } from './diagram/diagram.service';
 
 async function bootstrap() {
-  await AppDataSource.initialize();
-  console.log('✅ Database connected');
+  const maxAttempts = 30;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await AppDataSource.initialize();
+      console.log("✅ Database connected");
+      break;
+    } catch (err) {
+      if (i === maxAttempts - 1) {
+        console.error("❌ Cannot connect to database after 30s");
+        throw err;
+      }
+      console.log(`⏳ DB not ready... retry ${i + 1}/${maxAttempts}`);
+      await new Promise(res => setTimeout(res, 1000));
+    }
+  }
 
   const diagramRepository = new DiagramRepository(AppDataSource);
   const cacheService      = new ProjectCacheService();
@@ -40,7 +54,7 @@ async function bootstrap() {
   flushScheduler.start();
 
   const PORT = Number(process.env.PORT ?? 8000);
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server listening on port ${PORT}`);
   });
 

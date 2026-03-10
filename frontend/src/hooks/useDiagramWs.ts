@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { ServerMessage, ClientMessage, PatchOp } from '../types/Diagram';
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000';
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 export type WsStatus = 'connecting' | 'open' | 'closed' | 'error';
 
@@ -41,7 +41,7 @@ export function useDiagramWs({
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   useEffect(() => {
-    const ws = new WebSocket(`${WS_URL}/ws/${diagramId}`);
+    const ws = new WebSocket(`${WS_URL}/${diagramId}`);
     wsRef.current = ws;
     setStatus('connecting');
 

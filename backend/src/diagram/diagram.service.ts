@@ -3,6 +3,8 @@ import { DiagramRepository } from './diagram.repository';
 import { ProjectCacheService } from '../websocket/ProjectCacheService';
 import { WebSocketManager } from '../websocket/WebSocketManager';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface CreateDiagramDto {
   title: string;
   description?: string | null;
@@ -13,6 +15,10 @@ export interface CreateDiagramDto {
 export interface UpdateDiagramDto {
   title?: string;
   description?: string;
+}
+
+export function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
 }
 
 export class DiagramService {

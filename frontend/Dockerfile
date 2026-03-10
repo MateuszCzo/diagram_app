@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,6 @@ RUN apk add --no-cache nano
 COPY package.json package-lock.json ./
 RUN npm install
 
-COPY public/ ./public/
 COPY src/ ./src/
 COPY .env.example .env
 COPY eslint.config.js .
@@ -17,6 +16,9 @@ COPY tsconfig.json .
 COPY tsconfig.node.json .
 COPY vite.config.ts .
 
-EXPOSE 5173
+RUN npm run build
 
-CMD ["npm", "run", "dev"]
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

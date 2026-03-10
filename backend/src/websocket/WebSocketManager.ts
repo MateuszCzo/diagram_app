@@ -3,6 +3,7 @@ import { IncomingMessage, Server } from 'http';
 import { ProjectCacheService } from './ProjectCacheService';
 import { DiagramRepository } from '../diagram/diagram.repository';
 import { FlushScheduler } from './FlushScheduler';
+import { isValidUuid } from '../diagram/diagram.service';
 
 type ClientMessage =
   | { type: 'DIAGRAM_PATCH'; ops: unknown[] };
@@ -33,6 +34,12 @@ export class WebSocketManager {
 
       if (!diagramId) {
         this.send(ws, { type: 'ERROR', code: 'INVALID_URL', message: 'Expected /ws/:diagramId' });
+        ws.close();
+        return;
+      }
+
+      if (!isValidUuid(diagramId)) {
+        this.send(ws, { type: 'ERROR', code: 'INVALID_REQUEST', message: 'Expected :diagramId as uuid' });
         ws.close();
         return;
       }
@@ -173,6 +180,7 @@ export class WebSocketManager {
 
   private parseDiagramId(url: string): string | null {
     const match = url.match(/^\/ws\/([^/?]+)/);
+    console.log(match);
     return match?.[1] ?? null;
   }
 }
