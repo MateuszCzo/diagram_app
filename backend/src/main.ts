@@ -68,6 +68,9 @@ async function bootstrap() {
     await AppDataSource.destroy();
     console.log('✅ Database connection closed');
 
+    wsManager.closeAllConnections();
+    console.log('✅ Ws connections closed');
+
     server.close(() => {
       console.log('✅ HTTP server closed');
       process.exit(0);

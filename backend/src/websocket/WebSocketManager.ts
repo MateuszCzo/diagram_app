@@ -70,6 +70,17 @@ export class WebSocketManager {
     console.log('[WS] WebSocketServer attached');
   }
 
+  closeAllConnections(): void {
+    console.log(`[WS] closing all connections — rooms: ${this.rooms.size}`);
+    for (const [diagramId, room] of this.rooms) {
+      for (const ws of room.sockets) {
+        ws.terminate();
+      }
+      console.log(`[WS] closed room ${diagramId}`);
+    }
+    this.rooms.clear();
+  }
+
   private async joinRoom(ws: WebSocket, diagramId: string): Promise<void> {
     if (!this.rooms.has(diagramId)) {
       this.rooms.set(diagramId, { sockets: new Set() });
