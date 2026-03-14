@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY src/ ./src/
-COPY .env.example .env
+COPY .env.docker.example .env
 COPY eslint.config.js .
 COPY index.html .
 COPY tsconfig.app.json .
