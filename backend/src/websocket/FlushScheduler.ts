@@ -31,14 +31,22 @@ export class FlushScheduler {
     const dirty = this.cacheService.getDirtyEntries();
     if (dirty.length === 0) return;
 
+    console.log(`[FlushScheduler] flushAll — dirty entries: ${dirty.length}`);
     await Promise.allSettled(dirty.map((entry) => this.flushOne(entry)));
   }
 
   async flushOne(entry: ProjectCacheEntry): Promise<void> {
-    if (!entry.isDirty || entry.pendingPatches.length === 0) return;
+    if (!entry.isDirty || entry.pendingPatches.length === 0) {
+      console.log(`[FlushScheduler] flushOne(${entry.diagramId}) — skipped (isDirty: ${entry.isDirty}, pendingPatches: ${entry.pendingPatches.length})`);
+      return;
+    }
+
+    console.log(`[FlushScheduler] flushOne(${entry.diagramId}) — applying ${entry.pendingPatches.length} patch batches, baseSnapshot length: ${entry.baseSnapshot.length}`);
 
     try {
       const newSnapshot = this.applyPendingPatches(entry);
+      console.log(`[FlushScheduler] flushOne(${entry.diagramId}) — newSnapshot length: ${newSnapshot.length}`);
+
       await this.diagramRepo.upsertSnapshot(entry.diagramId, newSnapshot);
       this.cacheService.commitFlush(entry.diagramId, newSnapshot);
 
@@ -49,14 +57,20 @@ export class FlushScheduler {
   }
 
   async flushDiagram(diagramId: string): Promise<void> {
+    console.log(`[FlushScheduler] flushDiagram(${diagramId})`);
     const dirty = this.cacheService.getDirtyEntries();
     const entry = dirty.find((e) => e.diagramId === diagramId);
-    if (entry) await this.flushOne(entry);
+    if (entry) {
+      await this.flushOne(entry);
+    } else {
+      console.log(`[FlushScheduler] flushDiagram(${diagramId}) — not dirty, nothing to flush`);
+    }
   }
 
   private applyPendingPatches(entry: ProjectCacheEntry): string {
     if (entry.pendingPatches.length === 0) return entry.baseSnapshot;
 
+    console.log(`[FlushScheduler] applyPendingPatches(${entry.diagramId}) — type: ${entry.diagramType}, ops total: ${entry.pendingPatches.flat().length}`);
     const driver = createPatchDriver(entry.diagramType);
     return driver.apply(entry.baseSnapshot, entry.pendingPatches);
   }

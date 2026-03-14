@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useDiagramWs, type WsStatus } from '../../hooks/useDiagramWs';
+import { useDiagramWs, type WsStatus } from '../../hooks/UseDiagramWs';
 import type { PatchOp, XmlReplaceOp } from '../../types/Diagram';
 
 interface DrawioEditorProps {

@@ -4,7 +4,7 @@ import type { Diagram } from '../types/Diagram';
 import { diagramApi } from '../api/diagramApi';
 import { ExcalidrawEditor } from '../components/editors/ExcalidrawEditor';
 import { DrawioEditor } from '../components/editors/DrawioEditor';
-import type { WsStatus } from '../hooks/useDiagramWs';
+import type { WsStatus } from '../hooks/UseDiagramWs';
 
 export function DiagramEditorPage() {
   const { id }     = useParams<{ id: string }>();

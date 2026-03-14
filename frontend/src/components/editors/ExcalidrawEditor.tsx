@@ -1,65 +1,53 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI, AppState } from '@excalidraw/excalidraw/types';
-import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
-import { compare, applyPatch, type Operation } from 'fast-json-patch';
-import { useDiagramWs, type WsStatus } from '../../hooks/useDiagramWs';
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import { useDiagramWs, type WsStatus } from '../../hooks/UseDiagramWs';
 import type { PatchOp } from '../../types/Diagram';
-
 import '@excalidraw/excalidraw/index.css';
 
-interface ExcalidrawEditorProps {
-  diagramId:        string;
-  initialSnapshot:  string;
-  onStatusChange?:  (status: WsStatus) => void;
+interface Props {
+  diagramId:       string;
+  initialSnapshot: string;
+  onStatusChange?: (status: WsStatus) => void;
 }
 
-export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }: ExcalidrawEditorProps) {
-  const apiRef      = useRef<ExcalidrawImperativeAPI | null>(null);
-  const prevStateRef = useRef<{ elements: readonly ExcalidrawElement[]; appState: Partial<AppState> } | null>(null);
-  const isRemoteUpdate = useRef(false);
+function parseElements(snapshot: string): ExcalidrawElement[] {
+  if (!snapshot) return [];
+  try {
+    const p = JSON.parse(snapshot);
+    if (Array.isArray(p)) return p;
+    if (Array.isArray(p?.elements)) return p.elements;
+    return [];
+  } catch { return []; }
+}
 
-  const loadSnapshot = useCallback((snapshot: string) => {
-    if (!apiRef.current || !snapshot) return;
-    try {
-      const { elements, appState } = JSON.parse(snapshot);
-      apiRef.current.updateScene({ elements, appState });
-      prevStateRef.current = { elements, appState };
-    } catch {
-      console.error('[Excalidraw] Failed to parse snapshot');
-    }
+export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }: Props) {
+  const apiRef           = useRef<ExcalidrawImperativeAPI | null>(null);
+  const ignoreNextChange = useRef(false);
+  const lastSentRef      = useRef<string>('');
+  const isInitializedRef = useRef(false);
+
+  const onInit = useCallback((snapshot: string, _pendingPatches: PatchOp[][]) => {
+    const elements = parseElements(snapshot);
+    console.log(`[Excalidraw] onInit — elements: ${elements.length}`);
+
+    isInitializedRef.current = true;
+    ignoreNextChange.current = true;
+    lastSentRef.current = JSON.stringify(elements);
+    apiRef.current?.updateScene({ elements });
   }, []);
 
-  const onInit = useCallback((snapshot: string, pendingPatches: PatchOp[][]) => {
-    let base = snapshot ? JSON.parse(snapshot) : { elements: [], appState: {} };
-
-    for (const ops of pendingPatches) {
-      const { newDocument } = applyPatch(base, ops as Operation[], false, false);
-      base = newDocument;
-    }
-
-    loadSnapshot(JSON.stringify(base));
-  }, [loadSnapshot]);
-
   const onPatch = useCallback((ops: PatchOp[]) => {
-    if (!prevStateRef.current) return;
+    const op = ops[0] as { value?: string };
+    if (!op?.value) return;
 
-    isRemoteUpdate.current = true;
-    try {
-      const patched = applyPatch(
-        { elements: prevStateRef.current.elements, appState: prevStateRef.current.appState },
-        ops as Operation[],
-        false,
-        false,
-      ).newDocument;
+    const elements = parseElements(op.value);
+    console.log(`[Excalidraw] onPatch — elements: ${elements.length}`);
 
-      prevStateRef.current = patched as typeof prevStateRef.current;
-      apiRef.current?.updateScene({
-        elements: patched.elements as readonly ExcalidrawElement[],
-      });
-    } finally {
-      isRemoteUpdate.current = false;
-    }
+    ignoreNextChange.current = true;
+    lastSentRef.current = JSON.stringify(elements);
+    apiRef.current?.updateScene({ elements });
   }, []);
 
   const onError = useCallback((code: string) => {
@@ -69,36 +57,35 @@ export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }:
     }
   }, []);
 
-  const { sendPatch } = useDiagramWs({ diagramId, onInit, onPatch, onError, onStatusChange });
+  const onWsClose = useCallback(() => {
+    isInitializedRef.current = false;
+    ignoreNextChange.current = false;
+  }, []);
 
-  const onChange = useCallback((
-    elements: readonly ExcalidrawElement[],
-    appState: AppState,
-  ) => {
-    if (isRemoteUpdate.current) return;
+  const { sendPatch } = useDiagramWs({ diagramId, onInit, onPatch, onError, onClose: onWsClose, onStatusChange });
 
-    const prev = prevStateRef.current;
-    const next = { elements, appState };
 
-    if (!prev) {
-      prevStateRef.current = next;
+  const onChange = useCallback((elements: readonly ExcalidrawElement[]) => {
+    if (!isInitializedRef.current) return;
+
+    if (ignoreNextChange.current) {
+      ignoreNextChange.current = false;
       return;
     }
 
-    const ops = compare(
-      { elements: prev.elements, appState: prev.appState },
-      { elements, appState },
-    );
+    const serialized = JSON.stringify(elements);
+    if (serialized === lastSentRef.current) return;
 
-    if (ops.length === 0) return;
+    console.log(`[Excalidraw] onChange — sending ${elements.length} elements`);
+    lastSentRef.current = serialized;
 
-    prevStateRef.current = next;
-    sendPatch(ops as PatchOp[]);
+    sendPatch([{ value: serialized } as unknown as PatchOp]);
   }, [sendPatch]);
 
+
   useEffect(() => {
-    if (initialSnapshot) loadSnapshot(initialSnapshot);
-  }, [initialSnapshot, loadSnapshot]);
+    lastSentRef.current = JSON.stringify(parseElements(initialSnapshot));
+  }, [initialSnapshot]);
 
   return (
     <div style={{ width: '100%', height: '100%' }}>

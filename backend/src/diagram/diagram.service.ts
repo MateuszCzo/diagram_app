@@ -29,14 +29,17 @@ export class DiagramService {
   ) {}
 
   list(): Promise<Diagram[]> {
+    console.log('[DiagramService] list()');
     return this.diagramRepository.findAll();
   }
 
   getById(id: string): Promise<Diagram | null> {
+    console.log(`[DiagramService] getById(${id})`);
     return this.diagramRepository.findById(id);
   }
 
   create(dto: CreateDiagramDto): Promise<Diagram> {
+    console.log(`[DiagramService] create() — title: "${dto.title}", type: ${dto.type}`);
     return this.diagramRepository.create({
       title:       dto.title,
       description: dto.description ?? null,
@@ -46,25 +49,36 @@ export class DiagramService {
   }
 
   updateMeta(id: string, dto: UpdateDiagramDto): Promise<Diagram | null> {
+    console.log(`[DiagramService] updateMeta(${id}) — dto:`, dto);
     return this.diagramRepository.updateMeta(id, dto);
   }
 
   async delete(id: string): Promise<boolean> {
+    console.log(`[DiagramService] delete(${id})`);
     const diagram = await this.diagramRepository.findById(id);
-    if (!diagram) return false;
-
+    if (!diagram) {
+      console.warn(`[DiagramService] delete(${id}) — not found`);
+      return false;
+    }
+    console.log(`[DiagramService] delete(${id}) — flushing WS room`);
     await this.wsManager.flushAndCloseRoom(id);
-
+    console.log(`[DiagramService] delete(${id}) — deleting from DB`);
     await this.diagramRepository.delete(id);
-
+    console.log(`[DiagramService] delete(${id}) — done`);
     return true;
   }
 
   async getSnapshot(id: string): Promise<string | null> {
+    console.log(`[DiagramService] getSnapshot(${id})`);
     const cached = this.cacheService.getBaseSnapshot(id);
-    if (cached !== null) return cached;
-
+    if (cached !== null) {
+      console.log(`[DiagramService] getSnapshot(${id}) — cache hit, length: ${cached.length}`);
+      return cached;
+    }
+    console.log(`[DiagramService] getSnapshot(${id}) — cache miss, loading from DB`);
     const diagram = await this.diagramRepository.findById(id);
-    return diagram?.snapshot ?? null;
+    const snapshot = diagram?.snapshot ?? null;
+    console.log(`[DiagramService] getSnapshot(${id}) — snapshot length: ${snapshot?.length ?? 'null'}`);
+    return snapshot;
   }
 }
