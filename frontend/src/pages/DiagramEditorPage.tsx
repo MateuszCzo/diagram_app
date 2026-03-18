@@ -4,15 +4,16 @@ import type { Diagram } from '../types/Diagram';
 import { diagramApi } from '../api/diagramApi';
 import { ExcalidrawEditor } from '../components/editors/ExcalidrawEditor';
 import { DrawioEditor } from '../components/editors/DrawioEditor';
+import { IframeExportButton } from '../components/IframeExportButton';
 import type { WsStatus } from '../hooks/UseDiagramWs';
 
 export function DiagramEditorPage() {
-  const { id }     = useParams<{ id: string }>();
-  const navigate   = useNavigate();
+  const { id }   = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
-  const [diagram, setDiagram] = useState<Diagram | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [diagram,  setDiagram]  = useState<Diagram | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
   const [wsStatus, setWsStatus] = useState<WsStatus>('connecting');
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function DiagramEditorPage() {
           <span style={styles.title}>{diagram.title}</span>
           {diagram.description && <span style={styles.desc}>{diagram.description}</span>}
         </div>
+        <IframeExportButton diagramId={diagram.id} />
         <WsStatusBadge status={wsStatus} />
       </div>
 
@@ -75,7 +77,7 @@ function WsStatusBadge({ status }: { status: WsStatus }) {
 
 const styles: Record<string, React.CSSProperties> = {
   page:       { display: 'flex', flexDirection: 'column', height: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui, sans-serif' },
-  topBar:     { display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px', borderBottom: '1px solid #30363d', background: '#161b22', flexShrink: 0 },
+  topBar:     { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '1px solid #30363d', background: '#161b22', flexShrink: 0 },
   backBtn:    { background: 'transparent', border: '1px solid #30363d', color: '#7d8590', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' },
   titleGroup: { flex: 1, display: 'flex', alignItems: 'baseline', gap: 10 },
   title:      { fontWeight: 700, fontSize: 15 },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Diagram, DiagramType, CreateDiagramDto, UpdateDiagramDto } from '../types/Diagram';
 import { diagramApi } from '../api/diagramApi';
+import { IframeExportButton } from '../components/IframeExportButton';
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -29,7 +30,6 @@ export function DiagramListPage() {
 
   const [editTarget, setEditTarget] = useState<Diagram | null>(null);
   const [editDto,    setEditDto]    = useState<UpdateDiagramDto>({});
-
 
   useEffect(() => {
     fetchDiagrams();
@@ -113,6 +113,7 @@ export function DiagramListPage() {
                   {d.type}
                 </span>
                 <div style={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+                  <IframeExportButton diagramId={d.id} />
                   <button style={styles.iconBtn} title="Edit" onClick={() => openEdit(d)}>✎</button>
                   <button style={{ ...styles.iconBtn, color: '#f85149' }} title="Delete" onClick={() => handleDelete(d.id)}>🗑</button>
                 </div>
@@ -199,7 +200,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardTitle:  { fontWeight: 700, fontSize: 14 },
   cardDesc:   { fontSize: 12, color: '#7d8590', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   cardDate:   { fontSize: 11, color: '#484f58', marginTop: 4 },
-  cardActions:{ display: 'flex', gap: 4 },
+  cardActions:{ display: 'flex', gap: 4, alignItems: 'center' },
   typeBadge:  { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' },
   badgeExcalidraw: { background: '#1f3a5f', color: '#388bfd', border: '1px solid #388bfd33' },
   badgeDrawio:     { background: '#1a3a2a', color: '#3fb950', border: '1px solid #3fb95033' },

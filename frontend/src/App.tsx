@@ -1,14 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DiagramListPage }   from './pages/DiagramListPage';
 import { DiagramEditorPage } from './pages/DiagramEditorPage';
+import { DiagramEmbedPage }  from './pages/DiagramEmbedPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"                  element={<DiagramListPage />} />
-        <Route path="/diagrams/:id"      element={<DiagramEditorPage />} />
-        <Route path="*"                  element={<Navigate to="/" replace />} />
+        <Route path="/"               element={<DiagramListPage />} />
+        <Route path="/diagrams/:id"   element={<DiagramEditorPage />} />
+        <Route path="/embed/:id"      element={<DiagramEmbedPage />} />
+        <Route path="*"               element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
