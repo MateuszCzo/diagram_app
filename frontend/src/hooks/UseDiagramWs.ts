@@ -73,6 +73,7 @@ export function useDiagramWs({
     };
 
     ws.onmessage = (event) => {
+      console.log('[WS] Recived event:', event);
       if (!activeRef.current) return;
 
       let msg: ServerMessage;
@@ -83,19 +84,14 @@ export function useDiagramWs({
         return;
       }
 
-      console.log(`[WS] received: ${msg.type}`);
-
       switch (msg.type) {
         case 'DIAGRAM_INIT':
-          console.log(`[WS] DIAGRAM_INIT — snapshot: ${msg.snapshot.length}, pending: ${msg.pendingPatches.length}`);
           onInitRef.current(msg.snapshot, msg.pendingPatches);
           break;
         case 'DIAGRAM_PATCH':
-          console.log(`[WS] DIAGRAM_PATCH — ops: ${msg.ops.length}`);
           onPatchRef.current(msg.ops);
           break;
         case 'ERROR':
-          console.error(`[WS] error ${msg.code}:`, msg.message);
           onErrorRef.current?.(msg.code, msg.message);
           break;
       }
@@ -113,6 +109,7 @@ export function useDiagramWs({
   }, [diagramId]);
 
   const sendPatch = useCallback((ops: PatchOp[]) => {
+    console.log('[WS] Sending patch:', ops)
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] sendPatch — socket not open, dropping patch');

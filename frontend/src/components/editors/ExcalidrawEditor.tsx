@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawImperativeAPI, AppState } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import { compare, applyPatch, type Operation } from 'fast-json-patch';
 import { useDiagramWs, type WsStatus } from '../../hooks/UseDiagramWs';
 import type { PatchOp } from '../../types/Diagram';
 import '@excalidraw/excalidraw/index.css';
@@ -24,31 +25,42 @@ function parseElements(snapshot: string): ExcalidrawElement[] {
 
 export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }: Props) {
   const apiRef           = useRef<ExcalidrawImperativeAPI | null>(null);
-  const ignoreNextChange = useRef(false);
-  const lastSentRef      = useRef<string>('');
+  const skipRef          = useRef(0);
+  const prevElementsRef  = useRef<readonly ExcalidrawElement[]>([]);
   const isInitializedRef = useRef(false);
+  const isUnmountingRef  = useRef(false);
+
+  useEffect(() => {
+    return () => { isUnmountingRef.current = true; };
+  }, []);
+
+  const applyRemote = useCallback((elements: readonly ExcalidrawElement[]) => {
+    skipRef.current += 3;
+    apiRef.current?.updateScene({ elements });
+    setTimeout(() => {
+      const actual = apiRef.current?.getSceneElements();
+      if (actual && actual.length > 0) {
+        prevElementsRef.current = structuredClone(actual);
+      }
+    }, 100);
+  }, []);
 
   const onInit = useCallback((snapshot: string, _pendingPatches: PatchOp[][]) => {
     const elements = parseElements(snapshot);
-    console.log(`[Excalidraw] onInit — elements: ${elements.length}`);
-
     isInitializedRef.current = true;
-    ignoreNextChange.current = true;
-    lastSentRef.current = JSON.stringify(elements);
-    apiRef.current?.updateScene({ elements });
-  }, []);
+    applyRemote(elements);
+  }, [applyRemote]);
 
   const onPatch = useCallback((ops: PatchOp[]) => {
-    const op = ops[0] as { value?: string };
-    if (!op?.value) return;
-
-    const elements = parseElements(op.value);
-    console.log(`[Excalidraw] onPatch — elements: ${elements.length}`);
-
-    ignoreNextChange.current = true;
-    lastSentRef.current = JSON.stringify(elements);
-    apiRef.current?.updateScene({ elements });
-  }, []);
+    try {
+      const base = { elements: prevElementsRef.current };
+      const { newDocument } = applyPatch(base, ops as Operation[], false, false);
+      const elements = (newDocument as typeof base).elements;
+      applyRemote(elements);
+    } catch (e) {
+      console.error('[Excalidraw] onPatch — applyPatch failed:', e);
+    }
+  }, [applyRemote]);
 
   const onError = useCallback((code: string) => {
     if (code === 'DIAGRAM_DELETED') {
@@ -59,32 +71,33 @@ export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }:
 
   const onWsClose = useCallback(() => {
     isInitializedRef.current = false;
-    ignoreNextChange.current = false;
+    skipRef.current = 0;
   }, []);
 
   const { sendPatch } = useDiagramWs({ diagramId, onInit, onPatch, onError, onClose: onWsClose, onStatusChange });
 
-
-  const onChange = useCallback((elements: readonly ExcalidrawElement[]) => {
+  const onChange = useCallback((elements: readonly ExcalidrawElement[], appState: AppState) => {
+    if (isUnmountingRef.current) return;
     if (!isInitializedRef.current) return;
 
-    if (ignoreNextChange.current) {
-      ignoreNextChange.current = false;
+    if (skipRef.current > 0) {
+      skipRef.current -= 1;
       return;
     }
 
-    const serialized = JSON.stringify(elements);
-    if (serialized === lastSentRef.current) return;
+    const ops = compare(
+      { elements: prevElementsRef.current },
+      { elements: structuredClone(elements) },
+    );
 
-    console.log(`[Excalidraw] onChange — sending ${elements.length} elements`);
-    lastSentRef.current = serialized;
+    if (ops.length === 0) return;
 
-    sendPatch([{ value: serialized } as unknown as PatchOp]);
+    prevElementsRef.current = structuredClone(elements);
+    sendPatch(ops as PatchOp[]);
   }, [sendPatch]);
 
-
   useEffect(() => {
-    lastSentRef.current = JSON.stringify(parseElements(initialSnapshot));
+    prevElementsRef.current = structuredClone(parseElements(initialSnapshot));
   }, [initialSnapshot]);
 
   return (
