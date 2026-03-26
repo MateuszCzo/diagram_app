@@ -4,7 +4,7 @@ import type { ExcalidrawImperativeAPI, AppState } from '@excalidraw/excalidraw/t
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { compare, applyPatch, type Operation } from 'fast-json-patch';
 import { useDiagramWs, type WsStatus } from '../../hooks/UseDiagramWs';
-import type { PatchOp } from '../../types/Diagram';
+import type { JsonPatchOp, PatchOp } from '../../types/Diagram';
 import '@excalidraw/excalidraw/index.css';
 
 interface Props {
@@ -54,6 +54,11 @@ export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }:
   const onPatch = useCallback((ops: PatchOp[]) => {
     try {
       const base = { elements: prevElementsRef.current };
+      for (const op of ops) {
+        if ('path' in op) {
+          ensurePathExists(base, op.path);
+        }
+      }
       const { newDocument } = applyPatch(base, ops as Operation[], false, false);
       const elements = (newDocument as typeof base).elements;
       applyRemote(elements);
@@ -61,6 +66,25 @@ export function ExcalidrawEditor({ diagramId, initialSnapshot, onStatusChange }:
       console.error('[Excalidraw] onPatch — applyPatch failed:', e);
     }
   }, [applyRemote]);
+
+  const ensurePathExists = (base: any, path: string) => {
+    const parts = path.split('/').slice(1);
+    let obj = base;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i];
+
+      if (obj[key] === undefined) {
+        if (parts[i - 1] === 'points') {
+          obj[key] = [0, 0];
+        } else {
+          obj[key] = {};
+        }
+      }
+
+      obj = obj[key];
+    }
+  };
 
   const onError = useCallback((code: string) => {
     if (code === 'DIAGRAM_DELETED') {
