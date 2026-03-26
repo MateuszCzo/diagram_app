@@ -36,7 +36,7 @@ export class JsonPatchDriver implements PatchDriver {
     }
 
     try {
-      const { newDocument } = applyPatch(doc, flatOps, false, false);
+      const { newDocument } = applyPatch(structuredClone(doc), flatOps, false, false);
       const result = JSON.stringify(newDocument);
       console.log(`[JsonPatchDriver] apply success — newSnapshot length: ${result.length}`);
       return result;
@@ -51,7 +51,7 @@ export interface XmlReplaceOp {
   value: string;
 }
 
-export class SnapshotReplaceDriver implements PatchDriver {
+export class XmlPatchDriver implements PatchDriver {
   apply(_baseSnapshot: string, pendingPatches: XmlReplaceOp[][]): string {
     if (pendingPatches.length === 0) return _baseSnapshot;
 
@@ -68,13 +68,11 @@ export class SnapshotReplaceDriver implements PatchDriver {
   }
 }
 
-export class XmlPatchDriver extends SnapshotReplaceDriver {}
-
 export function createPatchDriver(type: DiagramType): PatchDriver {
   console.log(`[PatchDriver] createPatchDriver — type: ${type}`);
   switch (type) {
-    case DiagramType.EXCALIDRAW: return new SnapshotReplaceDriver();
-    case DiagramType.DRAWIO:     return new SnapshotReplaceDriver();
+    case DiagramType.EXCALIDRAW: return new JsonPatchDriver();
+    case DiagramType.DRAWIO:     return new XmlPatchDriver();
     default:
       throw new Error(`[PatchDriver] unknown diagram type: ${type}`);
   }
